@@ -212,6 +212,7 @@ func (p Pages) groupByDateField(sorter func(p Pages) Pages, formatter func(p *Pa
 	}
 
 	date := formatter(sp[0])
+
 	var r []PageGroup
 	r = append(r, PageGroup{Key: date, Pages: make(Pages, 0)})
 	r[0].Pages = append(r[0].Pages, sp[0])
@@ -279,20 +280,46 @@ func (p Pages) GroupByParamDate(key string, format string, order ...string) (Pag
 		var r Pages
 		for _, e := range p {
 			param := e.getParamToLower(key)
+
 			if param != nil {
+
+				// If param is a string, check if it's parsable to time or pass
+				if reflect.ValueOf(param).Kind() == reflect.String {
+
+					_, err := time.Parse(format, param.(string))
+					if err == nil {
+						r = append(r, e)
+					}
+				}
+
 				if _, ok := param.(time.Time); ok {
 					r = append(r, e)
 				}
 			}
 		}
 		pdate := func(p1, p2 *Page) bool {
-			return p1.getParamToLower(key).(time.Time).Unix() < p2.getParamToLower(key).(time.Time).Unix()
+
+			var param1, param2 interface{}
+			param1, param2 = p1.getParamToLower(key), p2.getParamToLower(key)
+			if reflect.ValueOf(param1).Kind() == reflect.String {
+				param1, _ = time.Parse(format, param1.(string))
+			}
+
+			if reflect.ValueOf(param2).Kind() == reflect.String {
+				param2, _ = time.Parse(format, param2.(string))
+			}
+
+			return param1.(time.Time).Unix() < param2.(time.Time).Unix()
 		}
 		pageBy(pdate).Sort(r)
 		return r
 	}
 	formatter := func(p *Page) string {
-		return p.getParamToLower(key).(time.Time).Format(format)
+		param := p.getParamToLower(key)
+		if reflect.ValueOf(param).Kind() == reflect.String {
+			param, _ = time.Parse(format, param.(string))
+		}
+		return param.(time.Time).Format(format)
 	}
 	return p.groupByDateField(sorter, formatter, order...)
 }
