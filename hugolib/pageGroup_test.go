@@ -23,18 +23,19 @@ import (
 )
 
 type pageGroupTestObject struct {
-	path   string
-	weight int
-	date   string
-	param  string
+	path       string
+	weight     int
+	date       string
+	param_date string
+	param      string
 }
 
 var pageGroupTestSources = []pageGroupTestObject{
-	{"/section1/testpage1.md", 3, "2012-04-06", "foo"},
-	{"/section1/testpage2.md", 3, "2012-01-01", "bar"},
-	{"/section1/testpage3.md", 2, "2012-04-06", "foo"},
-	{"/section2/testpage4.md", 1, "2012-03-02", "bar"},
-	{"/section2/testpage5.md", 1, "2012-04-06", "baz"},
+	{"/section1/testpage1.md", 3, "2012-04-06", "2012-04", "foo"},
+	{"/section1/testpage2.md", 3, "2012-01-01", "2012-01", "bar"},
+	{"/section1/testpage3.md", 2, "2012-04-06", "2012-04", "foo"},
+	{"/section2/testpage4.md", 1, "2012-03-02", "2012-03", "bar"},
+	{"/section2/testpage5.md", 1, "2012-04-06", "2012-04", "baz"},
 }
 
 func preparePageGroupTestPages(t *testing.T) Pages {
@@ -51,6 +52,7 @@ func preparePageGroupTestPages(t *testing.T) Pages {
 		p.ExpiryDate = cast.ToTime(src.date)
 		p.params["custom_param"] = src.param
 		p.params["custom_date"] = cast.ToTime(src.date)
+		p.params["custom_date_string"] = src.param_date
 		pages = append(pages, p)
 	}
 	return pages
@@ -448,6 +450,54 @@ func TestGroupByParamDateWithEmptyPages(t *testing.T) {
 	t.Parallel()
 	var pages Pages
 	groups, err := pages.GroupByParamDate("custom_date", "2006-01")
+	if err != nil {
+		t.Fatalf("Unable to make PagesGroup array: %s", err)
+	}
+	if groups != nil {
+		t.Errorf("PagesGroup isn't empty. It should be %#v, got %#v", nil, groups)
+	}
+}
+
+func TestGroupByParamDateString(t *testing.T) {
+	t.Parallel()
+	pages := preparePageGroupTestPages(t)
+	expect := PagesGroup{
+		{Key: "2012-04", Pages: Pages{pages[4], pages[2], pages[0]}},
+		{Key: "2012-03", Pages: Pages{pages[3]}},
+		{Key: "2012-01", Pages: Pages{pages[1]}},
+	}
+
+	groups, err := pages.GroupByParamDate("custom_date_string", "2006-01")
+	if err != nil {
+		t.Fatalf("Unable to make PagesGroup array: %s", err)
+	}
+	if !reflect.DeepEqual(groups, expect) {
+		t.Errorf("PagesGroup has unexpected groups. It should be %#v, got %#v", expect, groups)
+	}
+}
+
+func TestGroupByParamDateInReverseOrderString(t *testing.T) {
+	t.Parallel()
+	pages := preparePageGroupTestPages(t)
+	expect := PagesGroup{
+		{Key: "2012-01", Pages: Pages{pages[1]}},
+		{Key: "2012-03", Pages: Pages{pages[3]}},
+		{Key: "2012-04", Pages: Pages{pages[0], pages[2], pages[4]}},
+	}
+
+	groups, err := pages.GroupByParamDate("custom_date_string", "2006-01", "asc")
+	if err != nil {
+		t.Fatalf("Unable to make PagesGroup array: %s", err)
+	}
+	if !reflect.DeepEqual(groups, expect) {
+		t.Errorf("PagesGroup has unexpected groups. It should be %#v, got %#v", expect, groups)
+	}
+}
+
+func TestGroupByParamDateWithEmptyPagesString(t *testing.T) {
+	t.Parallel()
+	var pages Pages
+	groups, err := pages.GroupByParamDate("custom_date_string", "2006-01")
 	if err != nil {
 		t.Fatalf("Unable to make PagesGroup array: %s", err)
 	}
